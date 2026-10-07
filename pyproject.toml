@@ -16,6 +16,9 @@ dependencies = [
 dev = [
     "pytest",
 ]
+deepseek = [
+    "langchain-deepseek",
+]
 studio = [
     "langgraph-cli[inmem]",
 ]
