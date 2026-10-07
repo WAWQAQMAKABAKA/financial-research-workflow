@@ -451,6 +451,82 @@ v0 does not require autonomous iterative rewriting.
 
 ---
 
+
+
+## 14A. Publication artifact semantics
+
+Claim Review determines which artifact may leave the review gate.
+
+### PASS
+
+PASS means the complete reviewed research conclusion is eligible to become:
+
+    FundamentalResearchOutput
+
+PASS must contain no rejected claims.
+
+At finalization time, the workflow must additionally verify that the approved
+claim IDs equal the full substantive claim set in the draft.
+
+The finalizer may attach review status and preserve the reviewed research body.
+
+It must not introduce new analytical content.
+
+### PARTIAL
+
+PARTIAL means some substantive claims passed and some failed review.
+
+PARTIAL produces:
+
+    PartialResearchResult
+
+This artifact preserves:
+
+- the original FundamentalResearchDraft;
+- the ClaimReviewResult;
+- approved claim IDs;
+- rejected claim IDs;
+- review reasons.
+
+The workflow must not mechanically delete rejected claims and then pretend that
+the remaining executive summary, outlook, drivers, risks, assumptions, or
+confidence still form a coherent final analyst conclusion.
+
+The workflow also must not silently rewrite those fields.
+
+Therefore PARTIAL is publishable only as an explicitly marked partial research
+result, not as a completed FundamentalResearchOutput.
+
+A future bounded revision loop may create a revised draft and submit it through
+Claim Review again.
+
+### FAIL
+
+FAIL produces no publishable FundamentalResearchOutput or
+PartialResearchResult.
+
+The actual draft, review result, failure reasons, provenance, and run identity
+remain preserved for audit.
+
+### Review invariants
+
+PASS:
+- publication_allowed = true;
+- at least one approved claim;
+- no rejected claims.
+
+PARTIAL:
+- publication_allowed = true;
+- at least one approved claim;
+- at least one rejected claim.
+
+FAIL:
+- publication_allowed = false;
+- at least one failure reason.
+
+Exact draft/review claim-set consistency is enforced by finalization logic,
+because ClaimReviewResult does not independently contain the draft.
+
 ## 15. Persisted run record
 
 Persist the observable execution record:

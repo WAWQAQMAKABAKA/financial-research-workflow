@@ -19,6 +19,7 @@ from financial_research.contracts import (
     FundamentalOutlookAssessment,
     FundamentalResearchDraft,
     FundamentalResearchOutput,
+    PartialResearchResult,
     QuestionEvidenceState,
     ResearchQuestion,
     ResearchRequest,
@@ -306,3 +307,98 @@ def test_final_output_requires_review_status_after_review():
 
     assert final.review_status == ReviewStatus.PASS
     assert final.research_run_id == draft.research_run_id
+
+
+def test_pass_review_requires_at_least_one_approved_claim():
+    with pytest.raises(ValidationError, match="approved claims"):
+        ClaimReviewResult(
+            research_run_id="RUN1",
+            status=ReviewStatus.PASS,
+            publication_allowed=True,
+        )
+
+
+def test_partial_review_requires_both_approved_and_rejected_claims():
+    with pytest.raises(ValidationError, match="approved claims"):
+        ClaimReviewResult(
+            research_run_id="RUN1",
+            status=ReviewStatus.PARTIAL,
+            rejected_claim_ids=["C1"],
+            reasons=["Only rejected claims were produced."],
+            publication_allowed=True,
+        )
+
+    with pytest.raises(ValidationError, match="rejected claims"):
+        ClaimReviewResult(
+            research_run_id="RUN1",
+            status=ReviewStatus.PARTIAL,
+            approved_claim_ids=["C1"],
+            publication_allowed=True,
+        )
+
+
+def test_partial_research_result_preserves_draft_and_review():
+    draft = make_valid_draft()
+
+    review = ClaimReviewResult(
+        research_run_id="RUN1",
+        status=ReviewStatus.PARTIAL,
+        approved_claim_ids=["C1"],
+        rejected_claim_ids=["C2"],
+        reasons=["C2 is unsupported."],
+        publication_allowed=True,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="claims absent from draft",
+    ):
+        PartialResearchResult(
+            research_run_id="RUN1",
+            draft=draft,
+            review_result=review,
+        )
+
+    second_claim = FundamentalClaim(
+        claim_id="C2",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="Margin improvement is durable.",
+        supporting_claim_ids=["C1"],
+        assumptions=["Input costs remain stable."],
+    )
+
+    draft_with_two_claims = draft.model_copy(
+        update={
+            "claims": [draft.claims[0], second_claim],
+        }
+    )
+
+    result = PartialResearchResult(
+        research_run_id="RUN1",
+        draft=draft_with_two_claims,
+        review_result=review,
+    )
+
+    assert result.review_result.status == ReviewStatus.PARTIAL
+    assert result.draft.executive_summary == draft.executive_summary
+
+
+def test_partial_research_result_rejects_non_partial_review():
+    draft = make_valid_draft()
+
+    review = ClaimReviewResult(
+        research_run_id="RUN1",
+        status=ReviewStatus.PASS,
+        approved_claim_ids=["C1"],
+        publication_allowed=True,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="requires PARTIAL",
+    ):
+        PartialResearchResult(
+            research_run_id="RUN1",
+            draft=draft,
+            review_result=review,
+        )

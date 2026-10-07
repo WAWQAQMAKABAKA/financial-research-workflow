@@ -392,13 +392,63 @@ class ClaimReviewResult(StrictModel):
                 f"claims cannot be both approved and rejected: {sorted(overlap)}"
             )
 
-        if self.status == ReviewStatus.PASS and self.rejected_claim_ids:
-            raise ValueError("PASS review cannot contain rejected claims")
+        if self.status == ReviewStatus.PASS:
+            if self.rejected_claim_ids:
+                raise ValueError("PASS review cannot contain rejected claims")
+            if not self.approved_claim_ids:
+                raise ValueError("PASS review requires approved claims")
 
-        if self.status == ReviewStatus.PARTIAL and not self.rejected_claim_ids:
-            raise ValueError("PARTIAL review must identify rejected claims")
+        if self.status == ReviewStatus.PARTIAL:
+            if not self.approved_claim_ids:
+                raise ValueError("PARTIAL review requires approved claims")
+            if not self.rejected_claim_ids:
+                raise ValueError("PARTIAL review requires rejected claims")
 
         if self.status == ReviewStatus.FAIL and not self.reasons:
             raise ValueError("FAIL review requires at least one reason")
+
+        return self
+
+
+class PartialResearchResult(StrictModel):
+    research_run_id: str = Field(min_length=1)
+    draft: FundamentalResearchDraft
+    review_result: ClaimReviewResult
+
+    @model_validator(mode="after")
+    def validate_partial_result(self) -> PartialResearchResult:
+        if self.review_result.status != ReviewStatus.PARTIAL:
+            raise ValueError(
+                "PartialResearchResult requires PARTIAL ClaimReviewResult"
+            )
+
+        if not self.review_result.publication_allowed:
+            raise ValueError(
+                "PartialResearchResult requires publication_allowed=true"
+            )
+
+        if self.draft.research_run_id != self.research_run_id:
+            raise ValueError(
+                "draft research_run_id must match PartialResearchResult"
+            )
+
+        if self.review_result.research_run_id != self.research_run_id:
+            raise ValueError(
+                "review_result research_run_id must match PartialResearchResult"
+            )
+
+        draft_claim_ids = {claim.claim_id for claim in self.draft.claims}
+        reviewed_claim_ids = (
+            set(self.review_result.approved_claim_ids)
+            | set(self.review_result.rejected_claim_ids)
+        )
+
+        unknown = reviewed_claim_ids - draft_claim_ids
+
+        if unknown:
+            raise ValueError(
+                "review references claims absent from draft: "
+                f"{sorted(unknown)}"
+            )
 
         return self
