@@ -1,0 +1,25 @@
+.DS_Store
+.env
+.env.*
+.venv/
+.venv_probe/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Runtime / research artifacts
+research_runs/
+artifacts/
+cache/
+logs/
+
+# Local corpora and indexes are not committed by default
+corpus/
+indexes/

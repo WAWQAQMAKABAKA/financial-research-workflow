@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-research-workflow"
+version = "0.0.1"
+description = "Independent evidence-grounded financial research workflow"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph",
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+studio = [
+    "langgraph-cli[inmem]",
+]
+tracing = [
+    "langsmith",
+]
+
+[tool.setuptools.packages.find]
+include = ["financial_research*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
