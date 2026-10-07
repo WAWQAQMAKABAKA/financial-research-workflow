@@ -247,3 +247,70 @@ It does not establish:
 Reviewer `reasons` in the Chinese test were primarily English. Output-language
 policy is not part of this verification and remains a separate contract
 decision.
+
+## 2026-10-07 — Controlled Chinese live end-to-end PASS route
+
+Status: VERIFIED for one controlled live end-to-end PASS route.
+
+The run used the actual compiled LangGraph workflow with:
+- a controlled in-memory ScopeResolver;
+- a controlled in-memory EvidenceProvider;
+- Chinese financial-report-style evidence;
+- the real `FundamentalAnalystEngine`;
+- the real `ClaimReviewerEngine`;
+- `DeepSeekStructuredResearchModel` backed by `deepseek-chat`;
+- LangSmith tracing disabled.
+
+No production Retrieval Lab / RAG component was connected.
+
+The controlled evidence stated:
+
+`报告期内，公司营业收入同比增长12.5%。`
+
+The graph executed:
+
+`validate_request -> resolve_scope -> collect_evidence ->
+fundamental_analyst -> claim_review -> publish`
+
+Observed Analyst draft:
+- `C1` — `OBSERVED_FACT`, directly referencing `E-CN-1`;
+- `C2` — `ANALYST_INFERENCE`, no direct evidence reference, supported by `C1`,
+  with explicit assumptions;
+- `C3` — `FORWARD_VIEW`, no direct evidence reference, supported by prior
+  Analyst claims, with explicit assumptions;
+- fundamental outlook: `UNDETERMINED`;
+- confidence: `LOW`.
+
+Observed Reviewer result:
+- status: `PASS`;
+- approved claims: `C1`, `C2`, `C3`;
+- rejected claims: none;
+- `publication_allowed=true`.
+
+Observed graph terminal result:
+- `ResearchRunStatus.PUBLISHED`;
+- terminal artifact: `final_output`;
+- final output review status: `PASS`.
+
+Run identity remained consistent across the workflow request, EvidencePacket,
+FundamentalResearchDraft, ClaimReviewResult, and final publication artifact.
+
+The run remained read-only with respect to repository state.
+
+This verifies that a controlled Chinese evidence packet can pass through the
+real live Analyst and Reviewer inside the actual LangGraph workflow and reach
+the correct PASS publication artifact while preserving the strict-v0 claim
+chain and run identity.
+
+A Reviewer `PASS` is a publication-quality judgment, not an investment stance.
+In this verified run the research outlook remained `UNDETERMINED` and
+confidence remained `LOW`.
+
+Scope limitation:
+- the live end-to-end PASS route is verified;
+- live end-to-end PARTIAL and FAIL routes have not yet been exercised with
+  real model calls;
+- deterministic graph unit tests cover PASS, PARTIAL, and FAIL routing;
+- no real Financial Evidence Service / Retrieval Lab runtime was used;
+- no persistent ResearchRun storage was used;
+- no Quant Desk integration was used.
