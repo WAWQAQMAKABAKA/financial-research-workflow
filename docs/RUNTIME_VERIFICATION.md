@@ -70,3 +70,46 @@ The original live execution fact remains preserved as observed.
 DeepSeek provider verification remains based on the earlier dedicated live
 provider smoke test. This contract clarification did not independently rerun or
 reverify provider connectivity.
+
+## 2026-10-07 — Fundamental Analyst live strict-v0 verification
+
+Status: VERIFIED for live contract compliance.
+
+Runtime:
+- model: `deepseek-chat`;
+- adapter: `DeepSeekStructuredResearchModel`;
+- engine: `FundamentalAnalystEngine`;
+- LangSmith tracing: disabled;
+- evidence source: controlled test fixture;
+- repository writes during live run: none.
+
+Observed result:
+- returned `FundamentalResearchDraft`;
+- research run identity remained `RUN1`;
+- company, ticker, as-of, and report period remained unchanged;
+- Evidence Service target identity was `EVIDENCE-C1`;
+- Analyst claim identity used its own namespace beginning with `C1`;
+- one `OBSERVED_FACT` used direct `evidence_refs = ["E1"]` and no
+  `supporting_claim_ids`;
+- two `ANALYST_INFERENCE` claims used no direct `evidence_refs`, used
+  `supporting_claim_ids`, and contained explicit assumptions;
+- one `FORWARD_VIEW` used no direct `evidence_refs`, used supporting claims,
+  and contained explicit assumptions;
+- outlook was `UNDETERMINED`;
+- confidence was `LOW`;
+- the complete draft passed the archived strict-v0 structural contract.
+
+This verification establishes that the live DeepSeek-backed Fundamental
+Analyst can produce an output accepted by the strict-v0 claim-chain contract.
+
+It does not establish:
+- substantive investment-research quality;
+- semantic correctness of every Analyst claim;
+- Claim Reviewer live behavior;
+- PASS/PARTIAL/FAIL publication behavior under a real model;
+- full workflow correctness;
+- real Financial Evidence Service / Retrieval Lab integration;
+- Quant Desk integration.
+
+The earlier pre-clarification live run remains preserved separately and is not
+rewritten or retroactively reclassified.
