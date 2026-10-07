@@ -587,3 +587,95 @@ Additional requirements:
 - the research run can complete without Quant Desk production state;
 - no Quant Desk decision-chain input is written;
 - results remain recoverable through run/provenance identity.
+
+## Evidence target namespace and strict v0 claim chain
+
+This section records a new v0 constraint adopted on 2026-10-07.
+
+It is not a retrospective statement that the earlier contract already
+prohibited Analyst inference or forward-view claims from carrying direct
+`evidence_refs`. The earlier contract was ambiguous on that point.
+
+### Evidence-layer identity versus Analyst-layer identity
+
+The two claim identities are separate namespaces.
+
+`EvidenceItem.target_claim_id` identifies the Evidence Service target
+proposition evaluated when the EvidencePacket was built.
+
+`FundamentalClaim.claim_id` identifies a claim created in the Fundamental
+Analyst output.
+
+They are not required to use the same string.
+
+The formal cross-layer link is:
+
+    FundamentalClaim.evidence_refs
+        -> EvidenceItem.evidence_id
+
+A `target_claim_id` is stable only within its corresponding EvidencePacket/run
+identity. A `FundamentalClaim.claim_id` is stable only within its corresponding
+research output/run identity. Cross-run equality is not required.
+
+Every EvidenceItem must contain both:
+
+    target_claim_id
+    target_proposition
+
+Within one EvidencePacket, one `target_claim_id` must resolve to one explicit
+`target_proposition`. Multiple EvidenceItems may evaluate the same target
+proposition, but the same target ID must not map to conflicting proposition
+text.
+
+`EvidenceItem.relationship` is the relationship between that evidence item and
+its Evidence Service `target_proposition`.
+
+`SUPPORTS` therefore does not automatically mean that the evidence supports a
+later Analyst claim merely because the Analyst cites that evidence ID. Semantic
+appropriateness of the Analyst wording remains subject to Claim Review.
+
+### Strict v0 claim-link rules
+
+For `OBSERVED_FACT` and `MANAGEMENT_EXPLANATION`:
+
+    evidence_refs must be non-empty
+    supporting_claim_ids must be empty
+
+For `ANALYST_INFERENCE` and `FORWARD_VIEW`:
+
+    evidence_refs must be empty
+    supporting_claim_ids must be non-empty
+    assumptions must be non-empty
+
+Applicable disconfirming conditions should be stated explicitly, especially for
+forward-looking conclusions.
+
+This structure is a v0 auditability choice. It does not assert that human
+reasoning can never refer directly to source text. The purpose is to force the
+published machine-readable research chain to make its intermediate factual or
+management-attributed basis explicit.
+
+A presentation layer may later resolve a derived claim through its
+`supporting_claim_ids` to the underlying evidence without duplicating source
+references on the derived claim itself.
+
+### Structural validation
+
+Structural validation must ensure:
+
+- direct evidence references belong to EvidencePackets supplied to the run;
+- supporting claim references belong to the same Analyst output;
+- claim IDs are unique within the Analyst output;
+- supporting claims cannot self-reference;
+- the supporting-claim graph contains no cycles;
+- every `ANALYST_INFERENCE` and `FORWARD_VIEW` ultimately traces to at least one
+  evidence-backed `OBSERVED_FACT` or `MANAGEMENT_EXPLANATION`.
+
+These checks establish structural traceability only.
+
+They do not establish substantive truth.
+
+A management statement is still a management statement rather than independent
+verification. An Evidence Service `SUPPORTS` relationship applies to its
+upstream target proposition and does not mechanically approve an Analyst
+rephrasing or inference. Those semantic judgments remain part of Claim Review.

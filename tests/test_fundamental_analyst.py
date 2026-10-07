@@ -79,7 +79,8 @@ def make_packet() -> EvidencePacket:
         evidence_items=[
             EvidenceItem(
                 evidence_id="E1",
-                claim_id="C1",
+                target_claim_id="EVIDENCE-C1",
+                target_proposition="Revenue increased during the reporting period.",
                 source_id="SRC1",
                 document_id="DOC1",
                 source_type="filing",
@@ -324,3 +325,68 @@ def test_prompt_preserves_analyst_boundary():
     assert "management_explanation" in prompt
     assert "analyst_inference" in prompt
     assert "forward_view" in prompt
+
+
+def test_evidence_target_and_analyst_claim_namespaces_are_independent():
+    packet = make_packet()
+    draft = make_valid_draft()
+
+    assert (
+        packet.evidence_items[0].target_claim_id
+        != draft.claims[0].claim_id
+    )
+
+    engine = FundamentalAnalystEngine(
+        CapturingModel(draft)
+    )
+
+    result = engine.analyze(
+        make_request(),
+        [packet],
+        "RUN1",
+    )
+
+    assert result.claims[0].evidence_refs == ["E1"]
+
+
+def test_evidence_target_requires_explicit_proposition_text():
+    item_payload = (
+        make_packet()
+        .evidence_items[0]
+        .model_dump()
+    )
+
+    item_payload["target_proposition"] = ""
+
+    with pytest.raises(ValidationError):
+        EvidenceItem.model_validate(
+            item_payload
+        )
+
+
+def test_target_claim_id_maps_to_one_proposition_within_packet():
+    packet = make_packet()
+    first = packet.evidence_items[0]
+
+    second = first.model_copy(
+        update={
+            "evidence_id": "E2",
+            "target_proposition": (
+                "A different target proposition."
+            ),
+        }
+    )
+
+    packet_payload = packet.model_dump()
+    packet_payload["evidence_items"] = [
+        first.model_dump(),
+        second.model_dump(),
+    ]
+
+    with pytest.raises(
+        ValidationError,
+        match="target_claim_id must resolve to one",
+    ):
+        EvidencePacket.model_validate(
+            packet_payload
+        )

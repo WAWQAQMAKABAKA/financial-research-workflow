@@ -44,13 +44,31 @@ You must not:
 - use benchmark answers, ground truth or evaluator-only material.
 
 Claim semantics:
-- OBSERVED_FACT: directly supported by supplied evidence.
+- OBSERVED_FACT: directly supported by supplied evidence. In strict v0 it must
+  use direct evidence_refs and must not use supporting_claim_ids.
 - MANAGEMENT_EXPLANATION: management's stated explanation, directly supported by
-  supplied evidence and clearly attributed.
+  supplied evidence and clearly attributed. In strict v0 it must use direct
+  evidence_refs and must not use supporting_claim_ids.
 - ANALYST_INFERENCE: an analyst interpretation supported by prior claims and
-  explicit assumptions.
+  explicit assumptions. In strict v0 evidence_refs must be empty.
 - FORWARD_VIEW: a forward-looking research judgment supported by prior claims,
-  explicit assumptions and relevant disconfirming conditions.
+  explicit assumptions and relevant disconfirming conditions. In strict v0
+  evidence_refs must be empty.
+
+Evidence-layer and analyst-layer claim IDs are different namespaces.
+EvidenceItem.target_claim_id identifies the proposition evaluated by the
+Evidence Service. It does not need to equal FundamentalClaim.claim_id.
+
+The formal cross-layer reference is:
+FundamentalClaim.evidence_refs -> EvidenceItem.evidence_id.
+
+EvidenceItem.relationship describes the evidence relation to that item's
+target_proposition. It does not automatically prove a differently worded
+Analyst claim.
+
+Every inference and forward view must ultimately trace through
+supporting_claim_ids to an evidence-backed OBSERVED_FACT or
+MANAGEMENT_EXPLANATION.
 
 Every substantive conclusion must remain traceable through the claim chain.
 

@@ -51,7 +51,8 @@ def make_evidence(
 ) -> EvidenceItem:
     return EvidenceItem(
         evidence_id=evidence_id,
-        claim_id=claim_id,
+        target_claim_id=claim_id,
+        target_proposition="Evidence target proposition.",
         source_id="SRC1",
         document_id="DOC1",
         source_type="filing",
@@ -121,8 +122,8 @@ def test_runtime_contract_rejects_benchmark_or_gt_fields():
         )
 
 
-def test_evidence_requires_claim_or_target_proposition():
-    with pytest.raises(ValidationError, match="bind"):
+def test_evidence_requires_target_claim_id_and_target_proposition():
+    with pytest.raises(ValidationError) as exc_info:
         EvidenceItem(
             evidence_id="E1",
             source_id="SRC1",
@@ -134,6 +135,17 @@ def test_evidence_requires_claim_or_target_proposition():
             relevant_span="Relevant disclosure.",
             relationship=EvidenceRelationship.CONTEXT_ONLY,
         )
+
+    missing_fields = {
+        error["loc"][0]
+        for error in exc_info.value.errors()
+        if error["type"] == "missing"
+    }
+
+    assert {
+        "target_claim_id",
+        "target_proposition",
+    } <= missing_fields
 
 
 def test_evidence_packet_rejects_post_cutoff_evidence():
@@ -402,3 +414,133 @@ def test_partial_research_result_rejects_non_partial_review():
             draft=draft,
             review_result=review,
         )
+
+
+def test_strict_v0_claim_types_enforce_direct_vs_derived_links():
+    with pytest.raises(
+        ValidationError,
+        match="must not use supporting_claim_ids",
+    ):
+        FundamentalClaim(
+            claim_id="F1",
+            claim_type=ClaimType.OBSERVED_FACT,
+            text="Observed fact.",
+            evidence_refs=["E1"],
+            supporting_claim_ids=["OTHER"],
+        )
+
+    with pytest.raises(
+        ValidationError,
+        match="must not use direct evidence_refs",
+    ):
+        FundamentalClaim(
+            claim_id="I1",
+            claim_type=ClaimType.ANALYST_INFERENCE,
+            text="Inference.",
+            evidence_refs=["E1"],
+            supporting_claim_ids=["F1"],
+            assumptions=["The observed relationship persists."],
+        )
+
+
+def test_draft_rejects_supporting_claim_cycle():
+    first = FundamentalClaim(
+        claim_id="I1",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="First inference.",
+        supporting_claim_ids=["I2"],
+        assumptions=["Assumption one."],
+    )
+
+    second = FundamentalClaim(
+        claim_id="I2",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="Second inference.",
+        supporting_claim_ids=["I1"],
+        assumptions=["Assumption two."],
+    )
+
+    payload = make_valid_draft().model_dump()
+    payload["claims"] = [
+        first.model_dump(),
+        second.model_dump(),
+    ]
+    payload["fundamental_outlook"] = {
+        "outlook": FundamentalOutlook.UNDETERMINED,
+        "supporting_claim_ids": [],
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="cannot contain cycles",
+    ):
+        FundamentalResearchDraft.model_validate(payload)
+
+
+def test_draft_rejects_dangling_support_reference():
+    inference = FundamentalClaim(
+        claim_id="I1",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="Inference.",
+        supporting_claim_ids=["MISSING"],
+        assumptions=["Assumption."],
+    )
+
+    payload = make_valid_draft().model_dump()
+    payload["claims"] = [
+        inference.model_dump(),
+    ]
+    payload["fundamental_outlook"] = {
+        "outlook": FundamentalOutlook.UNDETERMINED,
+        "supporting_claim_ids": [],
+    }
+
+    with pytest.raises(
+        ValidationError,
+        match="references unknown claims",
+    ):
+        FundamentalResearchDraft.model_validate(payload)
+
+
+def test_multihop_derived_claim_traces_to_evidence_root():
+    fact = FundamentalClaim(
+        claim_id="F1",
+        claim_type=ClaimType.OBSERVED_FACT,
+        text="Revenue increased.",
+        evidence_refs=["E1"],
+    )
+
+    inference = FundamentalClaim(
+        claim_id="I1",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="Revenue momentum may persist.",
+        supporting_claim_ids=["F1"],
+        assumptions=["Demand remains broadly stable."],
+    )
+
+    forward = FundamentalClaim(
+        claim_id="V1",
+        claim_type=ClaimType.FORWARD_VIEW,
+        text="Revenue could remain stronger next period.",
+        supporting_claim_ids=["I1"],
+        assumptions=["No material demand deterioration."],
+        disconfirming_conditions=["Demand weakens materially."],
+    )
+
+    payload = make_valid_draft().model_dump()
+    payload["claims"] = [
+        fact.model_dump(),
+        inference.model_dump(),
+        forward.model_dump(),
+    ]
+    payload["fundamental_outlook"] = {
+        "outlook": FundamentalOutlook.UNDETERMINED,
+        "supporting_claim_ids": [],
+    }
+
+    result = FundamentalResearchDraft.model_validate(payload)
+
+    assert [
+        claim.claim_id
+        for claim in result.claims
+    ] == ["F1", "I1", "V1"]

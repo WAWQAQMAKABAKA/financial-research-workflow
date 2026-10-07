@@ -57,7 +57,8 @@ def make_scope() -> ResolvedExecutionScope:
 def make_packet(run_id: str = "RUN1") -> EvidencePacket:
     item = EvidenceItem(
         evidence_id="E1",
-        claim_id="C1",
+        target_claim_id="C1",
+        target_proposition="Evidence target proposition.",
         source_id="SRC1",
         document_id="DOC1",
         source_type="filing",

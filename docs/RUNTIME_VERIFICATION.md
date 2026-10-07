@@ -38,3 +38,35 @@ It does not prove:
 
 Secrets:
 - `DEEPSEEK_API_KEY` must never be committed or written into project artifacts.
+
+## 2026-10-07 — Fundamental Analyst live smoke under pre-clarification contract
+
+Status: EXECUTED; technically successful under the contract active at run time.
+
+Observed live result:
+- the real `FundamentalAnalystEngine` returned a valid
+  `FundamentalResearchDraft`;
+- run identity, company, ticker, as-of, and report period remained stable;
+- the result contained three claims;
+- the observed-fact claim cited supplied evidence `E1`;
+- two `ANALYST_INFERENCE` claims also carried direct `evidence_refs = ["E1"]`;
+- outlook was `UNDETERMINED`;
+- confidence was `LOW`;
+- repository state remained unchanged.
+
+Subsequent contract clarification:
+- Evidence Service `target_claim_id` and Analyst `claim_id` are separate
+  namespaces, so an EvidenceItem target ID differing from an Analyst claim ID
+  is not itself a defect;
+- strict v0 now requires `ANALYST_INFERENCE` and `FORWARD_VIEW` to leave
+  `evidence_refs` empty and trace through `supporting_claim_ids`;
+- therefore the two live inference claims would not comply with the newly
+  adopted strict-v0 claim-link rule.
+
+This is not a retroactive failure of the earlier schema or validator.
+
+The original live execution fact remains preserved as observed.
+
+DeepSeek provider verification remains based on the earlier dedicated live
+provider smoke test. This contract clarification did not independently rerun or
+reverify provider connectivity.

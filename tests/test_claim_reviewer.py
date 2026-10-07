@@ -66,7 +66,8 @@ def make_packet(
         evidence_items=[
             EvidenceItem(
                 evidence_id="E1",
-                claim_id="C1",
+                target_claim_id="C1",
+                target_proposition="Evidence target proposition.",
                 source_id="SRC1",
                 document_id="DOC1",
                 source_type="filing",
@@ -360,3 +361,6 @@ def test_reviewer_prompt_preserves_publication_gate_boundary():
     assert "benchmark answers" in prompt
     assert "ground truth" in prompt
     assert "hidden chain-of-thought" in prompt
+    assert "target_claim_id" in prompt
+    assert "target_proposition" in prompt
+    assert "does not automatically establish" in prompt

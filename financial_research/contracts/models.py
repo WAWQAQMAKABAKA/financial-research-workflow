@@ -134,8 +134,8 @@ class EvidenceCoverage(StrictModel):
 
 class EvidenceItem(StrictModel):
     evidence_id: str = Field(min_length=1)
-    claim_id: str | None = None
-    target_proposition: str | None = None
+    target_claim_id: str = Field(min_length=1)
+    target_proposition: str = Field(min_length=1)
     source_id: str = Field(min_length=1)
     document_id: str = Field(min_length=1)
     source_type: str = Field(min_length=1)
@@ -157,11 +157,6 @@ class EvidenceItem(StrictModel):
             self.pit_available_at,
             "pit_available_at",
         )
-
-        if not self.claim_id and not self.target_proposition:
-            raise ValueError(
-                "evidence must bind to claim_id and/or target_proposition"
-            )
 
         return self
 
@@ -223,6 +218,24 @@ class EvidencePacket(StrictModel):
         if len(evidence_ids) != len(set(evidence_ids)):
             raise ValueError("evidence IDs must be unique within a packet")
 
+        target_propositions: dict[str, str] = {}
+
+        for item in self.evidence_items:
+            existing = target_propositions.get(item.target_claim_id)
+
+            if (
+                existing is not None
+                and existing != item.target_proposition
+            ):
+                raise ValueError(
+                    "target_claim_id must resolve to one "
+                    "target_proposition within a packet"
+                )
+
+            target_propositions[item.target_claim_id] = (
+                item.target_proposition
+            )
+
         for item in self.evidence_items:
             if item.pit_available_at > self.as_of:
                 raise ValueError(
@@ -261,14 +274,27 @@ class FundamentalClaim(StrictModel):
                     f"{self.claim_type} requires direct evidence_refs"
                 )
 
+            if self.supporting_claim_ids:
+                raise ValueError(
+                    f"{self.claim_type} must not use supporting_claim_ids "
+                    "in strict v0"
+                )
+
         if self.claim_type in {
             ClaimType.ANALYST_INFERENCE,
             ClaimType.FORWARD_VIEW,
         }:
+            if self.evidence_refs:
+                raise ValueError(
+                    f"{self.claim_type} must not use direct evidence_refs "
+                    "in strict v0"
+                )
+
             if not self.supporting_claim_ids:
                 raise ValueError(
                     f"{self.claim_type} requires supporting_claim_ids"
                 )
+
             if not self.assumptions:
                 raise ValueError(
                     f"{self.claim_type} requires explicit assumptions"
@@ -340,6 +366,73 @@ class FundamentalResearchDraft(StrictModel):
                     f"claim {claim.claim_id} references unknown claims: "
                     f"{sorted(unknown)}"
                 )
+
+        claims_by_id = {
+            claim.claim_id: claim
+            for claim in self.claims
+        }
+
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(claim_id: str) -> None:
+            if claim_id in visiting:
+                raise ValueError(
+                    "supporting claim graph cannot contain cycles"
+                )
+
+            if claim_id in visited:
+                return
+
+            visiting.add(claim_id)
+
+            for supporting_id in (
+                claims_by_id[claim_id].supporting_claim_ids
+            ):
+                visit(supporting_id)
+
+            visiting.remove(claim_id)
+            visited.add(claim_id)
+
+        for claim_id in claims_by_id:
+            visit(claim_id)
+
+        evidence_root_types = {
+            ClaimType.OBSERVED_FACT,
+            ClaimType.MANAGEMENT_EXPLANATION,
+        }
+
+        trace_cache: dict[str, bool] = {}
+
+        def traces_to_evidence_root(claim_id: str) -> bool:
+            if claim_id in trace_cache:
+                return trace_cache[claim_id]
+
+            claim = claims_by_id[claim_id]
+
+            if claim.claim_type in evidence_root_types:
+                result = bool(claim.evidence_refs)
+                trace_cache[claim_id] = result
+                return result
+
+            result = bool(claim.supporting_claim_ids) and all(
+                traces_to_evidence_root(supporting_id)
+                for supporting_id in claim.supporting_claim_ids
+            )
+
+            trace_cache[claim_id] = result
+            return result
+
+        for claim in self.claims:
+            if claim.claim_type in {
+                ClaimType.ANALYST_INFERENCE,
+                ClaimType.FORWARD_VIEW,
+            }:
+                if not traces_to_evidence_root(claim.claim_id):
+                    raise ValueError(
+                        f"claim {claim.claim_id} does not ultimately trace "
+                        "to evidence-backed fact or management explanation"
+                    )
 
         for category, items in (
             ("driver", self.drivers),
