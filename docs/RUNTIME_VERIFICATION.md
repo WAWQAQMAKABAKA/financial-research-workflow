@@ -113,3 +113,137 @@ It does not establish:
 
 The earlier pre-clarification live run remains preserved separately and is not
 rewritten or retroactively reclassified.
+
+## 2026-10-07 — Claim Reviewer live semantic-gate verification
+
+Status: VERIFIED for live claim-level semantic review in English and Chinese.
+
+Runtime:
+- model: `deepseek-chat`;
+- adapter: `DeepSeekStructuredResearchModel`;
+- engine: `ClaimReviewerEngine`;
+- LangSmith tracing: disabled;
+- evidence source: controlled test fixtures;
+- repository writes during live model calls: none.
+
+### Initial English semantic test
+
+A directly supported observed fact stated:
+
+`Revenue increased during the reporting period.`
+
+The live Reviewer returned:
+- status: `PASS`;
+- approved claim: `C1`;
+- rejected claims: none;
+- `publication_allowed=true`.
+
+A mixed draft then contained:
+- `C1`: `Revenue increased during the reporting period.`;
+- `C2`: `Revenue doubled during the reporting period.`
+
+The supplied evidence supported only an increase and supplied no magnitude.
+
+The Reviewer semantically classified the mixed draft correctly:
+- approved `C1`;
+- rejected `C2`;
+- selected `PARTIAL`.
+
+However, the first live mixed-case response returned
+`publication_allowed=false`.
+
+The structured `ClaimReviewResult` contract rejected that response because
+the archived workflow contract requires:
+- `PASS -> publication_allowed=true`;
+- `PARTIAL -> publication_allowed=true`;
+- `FAIL -> publication_allowed=false`.
+
+### Raw diagnostic
+
+A read-only `include_raw=True` diagnostic confirmed that the model had
+correctly understood the evidence problem.
+
+The raw tool-call arguments contained:
+- status: `PARTIAL`;
+- approved claims: `["C1"]`;
+- rejected claims: `["C2"]`;
+- `publication_allowed=false`.
+
+The model's reasons explicitly stated that the evidence supported only an
+increase and did not support the claim that revenue doubled.
+
+Therefore the failure was not attributed to inability to perform semantic
+evidence review. It was attributed to ambiguity in the meaning of the
+`publication_allowed` field: the model interpreted it as permission to
+publish the original draft as written rather than as a workflow-routing flag.
+
+The Pydantic contract was not weakened.
+
+### Repair and English live regression
+
+The Reviewer system prompt was clarified so that
+`publication_allowed` is explicitly defined as a workflow-routing flag.
+
+For `PARTIAL`, `publication_allowed=true` means that the workflow may emit a
+`PartialResearchResult` preserving the original draft, complete claim
+classification, and review reasons. It does not mean that rejected claims or
+the original draft may be silently published as approved.
+
+After this clarification, the same English mixed case returned:
+- status: `PARTIAL`;
+- approved claims: `["C1"]`;
+- rejected claims: `["C2"]`;
+- `publication_allowed=true`.
+
+The live regression therefore satisfied both the semantic review requirement
+and the publication-routing contract.
+
+### Chinese financial-report semantic verification
+
+A separate live Chinese test used filing-style evidence:
+
+`报告期内，公司营业收入同比增长12.5%。`
+
+For a clean draft containing the same observed fact, the Reviewer returned:
+- status: `PASS`;
+- approved claim: `C-CN-1`;
+- rejected claims: none;
+- `publication_allowed=true`.
+
+A mixed Chinese draft additionally claimed:
+
+`报告期内，公司营业收入同比增长125%。`
+
+The Reviewer returned:
+- status: `PARTIAL`;
+- approved claim: `C-CN-1`;
+- rejected claim: `C-CN-2`;
+- `publication_allowed=true`.
+
+The Reviewer explicitly recognized that the supplied evidence stated 12.5%
+rather than 125% and rejected the stronger quantitative claim as unsupported
+and overstated.
+
+This verifies that the live Reviewer can perform claim-level semantic review
+against Chinese financial-report evidence for this controlled case.
+
+### Scope of verification
+
+This verification establishes:
+- live Claim Reviewer structured execution for supported claims;
+- live semantic rejection of unsupported quantitative overreach;
+- correct `PARTIAL` publication routing after prompt clarification;
+- controlled English semantic-gate behavior;
+- controlled Chinese financial-report semantic-gate behavior.
+
+It does not establish:
+- broad Chinese-language research quality across real issuers and filings;
+- calibrated Reviewer accuracy across diverse claim types;
+- production retry or failure-recovery policy;
+- real Financial Evidence Service / Retrieval Lab integration;
+- complete live Analyst -> Reviewer -> publication workflow behavior;
+- Quant Desk integration.
+
+Reviewer `reasons` in the Chinese test were primarily English. Output-language
+policy is not part of this verification and remains a separate contract
+decision.
