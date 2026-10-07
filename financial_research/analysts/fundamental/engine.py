@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -10,6 +10,7 @@ from financial_research.contracts import (
     FundamentalResearchDraft,
     ResearchRequest,
 )
+from financial_research.modeling import StructuredResearchModel
 
 
 FUNDAMENTAL_ANALYST_SYSTEM_PROMPT = """
@@ -61,17 +62,6 @@ bounded conclusion or UNDETERMINED outlook rather than inventing completeness.
 Do not provide hidden chain-of-thought. Return only the requested structured
 research artifact.
 """.strip()
-
-
-class StructuredResearchModel(Protocol):
-    def generate(
-        self,
-        *,
-        system_prompt: str,
-        input_payload: dict[str, Any],
-        output_schema: type[BaseModel],
-    ) -> BaseModel | dict[str, Any]:
-        ...
 
 
 class FundamentalAnalystEngine:
