@@ -301,7 +301,7 @@ class FundamentalOutlookAssessment(StrictModel):
         return self
 
 
-class FundamentalResearchOutput(StrictModel):
+class FundamentalResearchDraft(StrictModel):
     research_scope: ResearchScope = ResearchScope.FUNDAMENTAL
     company: str = Field(min_length=1)
     ticker: str = Field(min_length=1)
@@ -320,12 +320,11 @@ class FundamentalResearchOutput(StrictModel):
     limitations: list[str] = Field(default_factory=list)
     suggested_followup_questions: list[str] = Field(default_factory=list)
     confidence: Confidence
-    review_status: ReviewStatus
     provenance: dict[str, str] = Field(default_factory=dict)
     research_run_id: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_output(self) -> FundamentalResearchOutput:
+    def validate_output(self) -> FundamentalResearchDraft:
         self.as_of = _require_timezone(self.as_of, "as_of")
 
         claim_ids = [claim.claim_id for claim in self.claims]
@@ -363,6 +362,10 @@ class FundamentalResearchOutput(StrictModel):
             )
 
         return self
+
+
+class FundamentalResearchOutput(FundamentalResearchDraft):
+    review_status: ReviewStatus
 
 
 class ClaimReviewResult(StrictModel):

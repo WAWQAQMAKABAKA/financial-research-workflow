@@ -17,6 +17,7 @@ from financial_research.contracts import (
     FundamentalClaim,
     FundamentalOutlook,
     FundamentalOutlookAssessment,
+    FundamentalResearchDraft,
     FundamentalResearchOutput,
     QuestionEvidenceState,
     ResearchQuestion,
@@ -257,3 +258,51 @@ def test_claim_review_enforces_publication_gate():
             reasons=["Critical claim unsupported."],
             publication_allowed=True,
         )
+
+
+def make_valid_draft() -> FundamentalResearchDraft:
+    fact = FundamentalClaim(
+        claim_id="C1",
+        claim_type=ClaimType.OBSERVED_FACT,
+        text="Revenue increased.",
+        evidence_refs=["E1"],
+    )
+
+    return FundamentalResearchDraft(
+        company="Example Co",
+        ticker="600000",
+        as_of=AS_OF,
+        report_period="2026H1",
+        resolved_horizon=["2026Q3"],
+        executive_summary="Revenue improved in the baseline period.",
+        claims=[fact],
+        fundamental_outlook=FundamentalOutlookAssessment(
+            outlook=FundamentalOutlook.IMPROVING,
+            supporting_claim_ids=["C1"],
+        ),
+        confidence=Confidence.MEDIUM,
+        research_run_id="RUN1",
+    )
+
+
+def test_fundamental_draft_cannot_self_assign_review_status():
+    payload = make_valid_draft().model_dump()
+    payload["review_status"] = ReviewStatus.PASS
+
+    with pytest.raises(ValidationError):
+        FundamentalResearchDraft.model_validate(payload)
+
+
+def test_final_output_requires_review_status_after_review():
+    draft = make_valid_draft()
+
+    with pytest.raises(ValidationError):
+        FundamentalResearchOutput.model_validate(draft.model_dump())
+
+    final = FundamentalResearchOutput(
+        **draft.model_dump(),
+        review_status=ReviewStatus.PASS,
+    )
+
+    assert final.review_status == ReviewStatus.PASS
+    assert final.research_run_id == draft.research_run_id

@@ -264,13 +264,42 @@ checking unless independent-source provenance has actually been established.
 
 ---
 
-## 9. FundamentalResearchOutput v0
+## 9. Fundamental research lifecycle
+
+The Fundamental Analyst produces a pre-review artifact:
+
+    FundamentalResearchDraft
+
+The analyst does not assign its own review result.
+
+The lifecycle is:
+
+    FundamentalResearchDraft
+      ->
+    ClaimReviewResult
+      ->
+    FundamentalResearchOutput
+
+`FundamentalResearchOutput` is the reviewed/final publication-facing research
+artifact.
+
+Claim Review remains an independent publication gate.
+
+A draft must not contain `review_status`.
+
+The final output contains the accepted research body plus the resulting
+`review_status`.
+
+The executive summary is also subject to the publication gate. It must not be
+treated as automatically publishable merely because the analyst produced it.
+
+## 9A. FundamentalResearchDraft v0
 
 Every substantive conclusion participates in one traceable claim chain.
 
 Minimum logical form:
 
-    FundamentalResearchOutput
+    FundamentalResearchDraft
     - research_scope
     - company
     - ticker
@@ -289,11 +318,16 @@ Minimum logical form:
     - limitations[]
     - suggested_followup_questions[]
     - confidence
-    - review_status
     - provenance
     - research_run_id
 
----
+## 9B. FundamentalResearchOutput v0
+
+The final output contains the reviewed research body and additionally:
+
+    - review_status
+
+It is created only after Claim Review.
 
 ## 10. Claim types
 
