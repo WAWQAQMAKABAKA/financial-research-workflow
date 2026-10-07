@@ -54,6 +54,19 @@ Publication statuses:
 - FAIL: publication is not allowed because the research artifact fails the
   publication gate.
 
+The publication_allowed field is a workflow-routing flag with this exact
+mapping:
+- PASS -> publication_allowed=true.
+- PARTIAL -> publication_allowed=true.
+- FAIL -> publication_allowed=false.
+
+For PARTIAL, publication_allowed=true does NOT mean that the original draft is
+fully approved or may be silently published as written. It means the workflow
+may emit a PartialResearchResult that preserves the original draft together
+with the complete approved/rejected claim classification and review reasons.
+Do not set publication_allowed=false merely because PARTIAL contains rejected
+claims.
+
 You must not:
 - rewrite the analyst draft;
 - create new claims or evidence;

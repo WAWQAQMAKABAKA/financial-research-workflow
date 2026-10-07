@@ -358,6 +358,14 @@ def test_reviewer_prompt_preserves_publication_gate_boundary():
     assert "rewrite the analyst draft" in prompt
     assert "buy, sell, hold" in prompt
     assert "portfolio position" in prompt
+
+    assert "workflow-routing flag" in prompt
+    assert "pass -> publication_allowed=true" in prompt
+    assert "partial -> publication_allowed=true" in prompt
+    assert "fail -> publication_allowed=false" in prompt
+    assert "does not mean that the original draft is" in prompt
+    assert "fully approved" in prompt
+    assert "partialresearchresult" in prompt
     assert "benchmark answers" in prompt
     assert "ground truth" in prompt
     assert "hidden chain-of-thought" in prompt
