@@ -4,6 +4,10 @@ from langgraph.graph import END, START, StateGraph
 
 from financial_research.contracts import ReviewStatus
 from financial_research.state import ResearchRunStatus, ResearchState
+from financial_research.workflow.finalization import (
+    finalize_partial,
+    finalize_pass,
+)
 from financial_research.workflow.interfaces import WorkflowServices
 
 
@@ -129,12 +133,24 @@ def build_research_graph(services: WorkflowServices):
         raise ValueError(f"unsupported review status: {status}")
 
     def publish(state: ResearchState) -> dict:
+        final_output = finalize_pass(
+            state["draft"],
+            state["review_result"],
+        )
+
         return {
+            "final_output": final_output,
             "run_status": ResearchRunStatus.PUBLISHED,
         }
 
     def publish_partial(state: ResearchState) -> dict:
+        partial_result = finalize_partial(
+            state["draft"],
+            state["review_result"],
+        )
+
         return {
+            "partial_result": partial_result,
             "run_status": ResearchRunStatus.PARTIAL,
         }
 

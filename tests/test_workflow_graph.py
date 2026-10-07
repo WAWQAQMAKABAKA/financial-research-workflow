@@ -90,6 +90,14 @@ def make_draft(run_id: str = "RUN1") -> FundamentalResearchDraft:
         evidence_refs=["E1"],
     )
 
+    inference = FundamentalClaim(
+        claim_id="C2",
+        claim_type=ClaimType.ANALYST_INFERENCE,
+        text="Revenue momentum appears durable.",
+        supporting_claim_ids=["C1"],
+        assumptions=["Demand conditions remain broadly stable."],
+    )
+
     return FundamentalResearchDraft(
         company="Example Co",
         ticker="600000",
@@ -97,10 +105,10 @@ def make_draft(run_id: str = "RUN1") -> FundamentalResearchDraft:
         report_period="2026H1",
         resolved_horizon=["2026Q3"],
         executive_summary="Revenue improved in the baseline period.",
-        claims=[fact],
+        claims=[fact, inference],
         fundamental_outlook=FundamentalOutlookAssessment(
             outlook=FundamentalOutlook.IMPROVING,
-            supporting_claim_ids=["C1"],
+            supporting_claim_ids=["C1", "C2"],
         ),
         confidence=Confidence.MEDIUM,
         research_run_id=run_id,
@@ -177,7 +185,7 @@ class FakeClaimReviewer:
             return ClaimReviewResult(
                 research_run_id=self.review_run_id,
                 status=ReviewStatus.PASS,
-                approved_claim_ids=["C1"],
+                approved_claim_ids=["C1", "C2"],
                 publication_allowed=True,
             )
 
@@ -194,7 +202,7 @@ class FakeClaimReviewer:
         return ClaimReviewResult(
             research_run_id=self.review_run_id,
             status=ReviewStatus.FAIL,
-            rejected_claim_ids=["C1"],
+            rejected_claim_ids=["C1", "C2"],
             reasons=["Critical claim is unsupported."],
             publication_allowed=False,
         )
@@ -246,6 +254,12 @@ def test_pass_routes_to_published():
 
     assert result["run_status"] == ResearchRunStatus.PUBLISHED
     assert result["review_result"].status == ReviewStatus.PASS
+    assert result["final_output"].review_status == ReviewStatus.PASS
+    assert [
+        claim.claim_id
+        for claim in result["final_output"].claims
+    ] == ["C1", "C2"]
+    assert "partial_result" not in result
     assert "failure_reason" not in result
     assert call_log == [
         "resolve_scope",
@@ -262,6 +276,9 @@ def test_partial_routes_to_partial():
 
     assert result["run_status"] == ResearchRunStatus.PARTIAL
     assert result["review_result"].status == ReviewStatus.PARTIAL
+    assert result["partial_result"].review_result.status == ReviewStatus.PARTIAL
+    assert result["partial_result"].draft == result["draft"]
+    assert "final_output" not in result
     assert "failure_reason" not in result
     assert call_log[-1] == "claim_review"
 
@@ -274,6 +291,8 @@ def test_fail_routes_to_preserved_failure():
     assert result["run_status"] == ResearchRunStatus.FAILED
     assert result["review_result"].status == ReviewStatus.FAIL
     assert result["failure_reason"] == "Critical claim is unsupported."
+    assert "final_output" not in result
+    assert "partial_result" not in result
     assert call_log[-1] == "claim_review"
 
 

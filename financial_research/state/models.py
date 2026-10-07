@@ -8,6 +8,7 @@ from financial_research.contracts import (
     EvidencePacket,
     FundamentalResearchDraft,
     FundamentalResearchOutput,
+    PartialResearchResult,
     ResearchRequest,
     ResolvedExecutionScope,
 )
@@ -33,5 +34,6 @@ class ResearchState(TypedDict, total=False):
     draft: FundamentalResearchDraft
     review_result: ClaimReviewResult
     final_output: NotRequired[FundamentalResearchOutput]
+    partial_result: NotRequired[PartialResearchResult]
     run_status: ResearchRunStatus
     failure_reason: NotRequired[str]
