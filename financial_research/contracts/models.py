@@ -214,6 +214,21 @@ class EvidencePacket(StrictModel):
                 "question_state.question_id must match EvidencePacket.question_id"
             )
 
+        if (
+            not self.evidence_items
+            and self.question_state.technical_state.status
+            == TechnicalStatus.OK
+            and self.question_state.availability
+            in (
+                EvidenceAvailability.AVAILABLE,
+                EvidenceAvailability.PARTIAL,
+            )
+        ):
+            raise ValueError(
+                "AVAILABLE or PARTIAL requires traceable "
+                "evidence_items when technical status is OK"
+            )
+
         evidence_ids = [item.evidence_id for item in self.evidence_items]
         if len(evidence_ids) != len(set(evidence_ids)):
             raise ValueError("evidence IDs must be unique within a packet")
