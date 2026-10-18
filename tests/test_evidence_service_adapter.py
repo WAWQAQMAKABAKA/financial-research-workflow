@@ -15,6 +15,7 @@ from financial_research.contracts import (
     QuestionEvidenceState,
 )
 from financial_research.workflow.evidence_service_adapter import (
+    EvidenceScopeAuthorizationError,
     EvidenceServiceProviderAdapter,
 )
 
@@ -211,3 +212,71 @@ def test_non_packet_result_fails():
 def test_non_list_result_fails():
     with pytest.raises(TypeError, match="return a list"):
         collect(None)
+
+
+def test_empty_document_scope_denies_before_backend_call():
+    request, scope, packet = valid_case()
+
+    empty_scope = scope.model_copy(
+        update={"document_scope": []}
+    )
+
+    service = FakeService([packet])
+    adapter = EvidenceServiceProviderAdapter(service)
+
+    with pytest.raises(
+        EvidenceScopeAuthorizationError,
+        match="document_scope",
+    ):
+        adapter.collect(request, empty_scope, "RUN1")
+
+    assert service.calls == []
+
+
+def test_blank_document_scope_is_not_authorization():
+    request, scope, packet = valid_case()
+
+    blank_scope = scope.model_copy(
+        update={"document_scope": ["   "]}
+    )
+
+    service = FakeService([packet])
+    adapter = EvidenceServiceProviderAdapter(service)
+
+    with pytest.raises(
+        EvidenceScopeAuthorizationError,
+        match="document_scope",
+    ):
+        adapter.collect(request, blank_scope, "RUN1")
+
+    assert service.calls == []
+
+
+def test_empty_scope_does_not_become_evidence_unavailable():
+    request, scope, packet = valid_case()
+
+    empty_scope = scope.model_copy(
+        update={"document_scope": []}
+    )
+
+    unavailable = packet.model_copy(
+        update={
+            "evidence_items": [],
+            "question_state": QuestionEvidenceState(
+                question_id="Q1",
+                availability=EvidenceAvailability.UNAVAILABLE,
+                sufficiency=AnswerSufficiency.INSUFFICIENT,
+            ),
+        }
+    )
+
+    service = FakeService([unavailable])
+    adapter = EvidenceServiceProviderAdapter(service)
+
+    with pytest.raises(
+        EvidenceScopeAuthorizationError,
+        match="document_scope",
+    ):
+        adapter.collect(request, empty_scope, "RUN1")
+
+    assert service.calls == []

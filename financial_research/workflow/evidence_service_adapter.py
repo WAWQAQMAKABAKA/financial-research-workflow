@@ -18,6 +18,10 @@ from financial_research.contracts import (
 )
 
 
+class EvidenceScopeAuthorizationError(PermissionError):
+    """Explicit document authorization is absent or invalid."""
+
+
 class FinancialEvidenceServiceClient(Protocol):
     def fetch_packets(
         self,
@@ -60,6 +64,22 @@ class EvidenceServiceProviderAdapter:
             or not research_run_id
         ):
             raise ValueError("research_run_id is required")
+
+        # Fail closed before calling the evidence backend.
+        # An empty scope is not corpus-wide authorization.
+        if (
+            not execution_scope.document_scope
+            or any(
+                not document_id.strip()
+                for document_id in execution_scope.document_scope
+            )
+        ):
+            raise EvidenceScopeAuthorizationError(
+                "document_scope requires at least one "
+                "explicit nonblank authorized document ID"
+            )
+
+        permitted = set(execution_scope.document_scope)
 
         raw_packets = self.service.fetch_packets(
             request,
@@ -118,16 +138,12 @@ class EvidenceServiceProviderAdapter:
                     "duplicate evidence packet question"
                 )
 
-            if execution_scope.document_scope:
-                permitted = set(
-                    execution_scope.document_scope
-                )
-                for item in packet.evidence_items:
-                    if item.document_id not in permitted:
-                        raise ValueError(
-                            "evidence document outside "
-                            "resolved document_scope"
-                        )
+            for item in packet.evidence_items:
+                if item.document_id not in permitted:
+                    raise ValueError(
+                        "evidence document outside "
+                        "resolved document_scope"
+                    )
 
             received_ids.add(packet.question_id)
             validated_packets.append(packet)

@@ -773,3 +773,61 @@ Implement and test:
 
 Contract field changes and real EvidenceProvider
 implementation require separate verified checkpoints.
+
+## FRW v1 explicit document-scope authorization
+
+Status: Jason-approved business rule, 2026-10-18.
+Scope: Financial Research Workflow v1 evidence access.
+
+### Authorization rule
+
+An empty ResolvedExecutionScope.document_scope
+does not authorize evidence retrieval or delivery.
+
+The EvidenceProvider adapter must reject an empty
+document scope before invoking any evidence backend.
+
+Blank document identifiers are not valid explicit
+authorization.
+
+Each delivered EvidenceItem.document_id must belong
+to the explicitly resolved document scope.
+
+### Failure semantics
+
+Missing explicit document authorization is an
+authorization boundary failure.
+
+It must not be converted into:
+- EvidenceAvailability.UNAVAILABLE
+- AnswerSufficiency.INSUFFICIENT
+- A fabricated empty evidence result
+- Implicit authorization to search all documents
+
+A dedicated authorization exception is permitted
+at the adapter boundary.
+
+Presenting this error in a human-facing workflow
+status requires separate runtime delivery verification.
+
+### Future expansion
+
+FRW v1 does not infer corpus-wide authorization
+from an empty document_scope.
+
+Any future corpus-wide permission requires
+a separately approved authorization contract
+and dedicated validation tests.
+
+### Implementation boundary
+
+The adapter checks the resolved document IDs.
+It does not independently authenticate the upstream
+ScopeResolver's authority to grant those IDs.
+
+Financial Evidence Service remains responsible for
+underlying source permissions, PIT enforcement,
+actual acquisition and source-version provenance.
+
+This change does not modify Retrieval Lab,
+the existing LangGraph, FC v2 or trading rules.
