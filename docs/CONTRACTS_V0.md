@@ -683,7 +683,7 @@ rephrasing or inference. Those semantic judgments remain part of Claim Review.
 ## FRW date-level PIT ruling
 
 Status: Jason-approved business policy.
-Implementation status: Pending engineering verification.
+Implementation status: Date-level EvidenceItem contract verified (74 tests); production Financial Evidence Service enforcement pending.
 
 ### Applicability
 

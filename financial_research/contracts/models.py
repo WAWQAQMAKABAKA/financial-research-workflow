@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from datetime import date as _PitDate
+from datetime import datetime as _PitDateTime
+from datetime import timedelta as _PitDelta
+from typing import Literal as _PitLiteral
+from zoneinfo import ZoneInfo as _PitZoneInfo
+
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
@@ -139,8 +145,16 @@ class EvidenceItem(StrictModel):
     source_id: str = Field(min_length=1)
     document_id: str = Field(min_length=1)
     source_type: str = Field(min_length=1)
-    published_at: datetime
+    published_at: datetime | None = None
+    published_on: _PitDate | None = None
     pit_available_at: datetime
+    observed_at: datetime | None = None
+    source_version_id: str | None = None
+    pit_time_basis: _PitLiteral[
+        "legacy_unclassified",
+        "verified_timestamp",
+        "date_end_conservative",
+    ] = "legacy_unclassified"
     page: str | None = None
     canonical_location: str = Field(min_length=1)
     relevant_span: str = Field(min_length=1)
@@ -152,11 +166,55 @@ class EvidenceItem(StrictModel):
 
     @model_validator(mode="after")
     def validate_evidence_item(self) -> EvidenceItem:
-        self.published_at = _require_timezone(self.published_at, "published_at")
+        if self.published_at is not None:
+            self.published_at = _require_timezone(
+                self.published_at, "published_at"
+            )
+
         self.pit_available_at = _require_timezone(
-            self.pit_available_at,
-            "pit_available_at",
+            self.pit_available_at, "pit_available_at"
         )
+
+        if self.observed_at is not None:
+            self.observed_at = _require_timezone(
+                self.observed_at, "observed_at"
+            )
+
+        if self.published_at is None and self.published_on is None:
+            raise ValueError(
+                "publication date or verified timestamp is required"
+            )
+
+        if self.published_at is None:
+            if self.pit_time_basis != "date_end_conservative":
+                raise ValueError(
+                    "date-only publication requires "
+                    "date_end_conservative PIT basis"
+                )
+
+            earliest = _PitDateTime.combine(
+                self.published_on + _PitDelta(days=1),
+                _PitDateTime.min.time(),
+                tzinfo=_PitZoneInfo("Asia/Shanghai"),
+            )
+
+            if self.pit_available_at < earliest:
+                raise ValueError(
+                    "date-level evidence cannot be eligible "
+                    "before the next Shanghai calendar day"
+                )
+
+        else:
+            if self.pit_time_basis == "date_end_conservative":
+                raise ValueError(
+                    "date-only PIT basis must not assert "
+                    "an exact publication timestamp"
+                )
+
+            if self.pit_available_at < self.published_at:
+                raise ValueError(
+                    "PIT eligibility precedes publication"
+                )
 
         return self
 
