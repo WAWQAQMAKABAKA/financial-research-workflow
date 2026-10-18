@@ -679,3 +679,97 @@ A management statement is still a management statement rather than independent
 verification. An Evidence Service `SUPPORTS` relationship applies to its
 upstream target proposition and does not mechanically approve an Analyst
 rephrasing or inference. Those semantic judgments remain part of Claim Review.
+
+## FRW date-level PIT ruling
+
+Status: Jason-approved business policy.
+Implementation status: Pending engineering verification.
+
+### Applicability
+
+This ruling applies to Financial Research Workflow
+and the Financial Evidence Service evidence-admission
+boundary.
+
+It does not automatically alter Quant Desk trading
+rules, FC v2 research behavior, or frozen Retrieval
+Lab experiment results.
+
+### Conservative publication eligibility
+
+When a source has a verifiable publication date D
+but lacks a trustworthy exact publication timestamp,
+the earliest eligible research time is the start of
+the next calendar day in Asia/Shanghai.
+
+For example, a document published on 2026-08-28
+has a date-level eligibility boundary of
+2026-08-29T00:00:00+08:00.
+
+This is a conservative eligibility boundary, not
+a claim about the actual publication clock time.
+
+A document must not be used for an as_of timestamp
+earlier than its applicable PIT eligibility boundary.
+
+### Preserve distinct temporal meanings
+
+Maintain separately:
+
+- published_on: verified public announcement date.
+- published_at: actual publication timestamp, only
+  when independently verified; otherwise unknown.
+- pit_available_at: derived or verified research
+  eligibility boundary, with precision/provenance.
+- observed_at: actual acquisition or observation
+  timestamp when available.
+- Source or numerical revision/version identity.
+
+An epoch value representing midnight for a
+date-granularity record must not be presented as
+an authenticated exact publication time.
+
+### Historical and live use
+
+Historical public-date eligibility is not proof
+that the system actually possessed the document
+at the historical as_of timestamp.
+
+Live evidence use additionally requires evidence
+of actual acquisition by the relevant as_of time.
+
+Missing acquisition history or historical source
+versions must remain explicit limitations.
+
+Do not silently backdate subsequently retrieved or
+corrected evidence.
+
+### Enforcement boundary
+
+Financial Evidence Service owns PIT admission.
+
+The existing Retrieval Lab P1/B0 same-day behavior
+is not accepted as production FRW PIT authorization.
+
+Do not directly modify the frozen Retrieval Lab
+baseline solely to implement this ruling.
+
+FRW must not create an EvidenceItem with invented
+publication precision to satisfy datetime validation.
+
+### Engineering acceptance criteria
+
+Implement and test:
+
+1. Date D before its end: not eligible.
+2. Date D+1 at 00:00 Asia/Shanghai: date gate passes.
+3. Missing verified publication time: remains unknown.
+4. Unverified history/version: limitation preserved.
+5. Historical public visibility is not confused with
+   proven historical system observation.
+6. Technical failure, evidence availability and
+   answer sufficiency remain independent.
+7. No Quant Desk execution-state propagation.
+
+Contract field changes and real EvidenceProvider
+implementation require separate verified checkpoints.
